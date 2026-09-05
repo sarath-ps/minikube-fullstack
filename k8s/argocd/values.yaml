@@ -1,0 +1,15 @@
+global:
+  domain: argocd.cloudsea.local
+
+configs:
+  params:
+    server.insecure: "true"
+
+server:
+  replicas: 1
+
+  httproute:
+    enabled: false
+
+  ingress:
+    enabled: false
