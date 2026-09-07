@@ -97,6 +97,14 @@ flowchart TB
 │   │   │   ├── service.yaml             # ClusterIP & Headless services
 │   │   │   ├── statefulset.yaml         # Garage v2.1.0 StatefulSet
 │   │   │   └── webui.yaml               # Noooste/garage-ui Deployment (OIDC configured)
+│   │   ├── harbor/                      # Harbor Enterprise OCI Container Registry
+│   │   │   ├── ca-secret.yaml           # Local Root CA secret for internal TLS trust
+│   │   │   ├── gateway.yaml             # HTTPRoute for harbor.192.168.39.200.nip.io
+│   │   │   ├── kustomization.yaml       # Harbor infra Kustomize entrypoint
+│   │   │   ├── namespace.yaml           # harbor namespace
+│   │   │   ├── oidc-config-job.yaml     # Auto-configuration Job for Authentik OIDC
+│   │   │   ├── postgres.yaml            # CloudNativePG Cluster for Harbor (registry db)
+│   │   │   └── values.yaml              # Helm values (S3 storage on Garage, Trivy, Exporter)
 │   │   └── lgtm/                        # LGTM Observability Stack
 │   │       ├── ca-configmap.yaml        # Local Root CA configmap for internal TLS
 │   │       ├── dashboards.yaml          # ConfigMap packaging all pre-provisioned Grafana dashboards
@@ -105,6 +113,7 @@ flowchart TB
 │   │       │   ├── authentik.json       # Authentik SSO & outpost heartbeats
 │   │       │   ├── cnpg-postgres.json   # CloudNativePG PostgreSQL clusters
 │   │       │   ├── forgejo-garage.json  # Forgejo Git & Garage S3 storage
+│   │       │   ├── harbor.json          # Harbor projects, repositories, artifacts & storage
 │   │       │   ├── k8s-cluster.json     # Cluster CPU, Memory, Node & Namespace overview
 │   │       │   ├── k8s-pods.json        # Workloads, Pod resources & network IO
 │   │       │   └── lgtm.json            # LGTM Stack pipelines & telemetry
@@ -123,6 +132,8 @@ flowchart TB
 │   │   │   ├── forgejo.yaml             # Forgejo app
 │   │   │   ├── forgejo-runner.yaml      # Forgejo runner app
 │   │   │   ├── garage.yaml              # Garage S3 app
+│   │   │   ├── harbor-infra.yaml        # Harbor infrastructure (Postgres, Gateway, CA)
+│   │   │   ├── harbor.yaml              # Harbor Helm application (App v2.15.2)
 │   │   │   ├── lgtm.yaml                # LGTM Observability Stack app
 │   │   │   └── metrics-server.yaml      # Kubernetes Metrics Server app
 │   │   ├── argocd-gateway.yaml          # Shared Gateway & HTTPRoute (192.168.39.200)
@@ -257,6 +268,8 @@ Argo CD will automatically sync:
 - `forgejo` (Git Repository & SSH)
 - `forgejo-runner` (Actions CI/CD Runner)
 - `garage` (S3 Object Storage & Garage Web UI)
+- `harbor-infra` (Harbor CloudNativePG PostgreSQL, Gateway HTTPRoute & CA Trust)
+- `harbor` (Harbor OCI Registry with Trivy & S3 Garage backend)
 - `lgtm` (Loki, Grafana, Tempo, Prometheus, OpenTelemetry Collector)
 
 ---
@@ -281,7 +294,11 @@ Authentik automatically provisions OAuth2/OIDC applications and providers on fir
    - Issuer: `https://authentik.192.168.39.200.nip.io/application/o/garage-ui/`
    - Callback: `https://garage.192.168.39.200.nip.io/auth/oidc/callback`
    - Configured via `garage-ui` OIDC authentication provider.
-v
+5. **Harbor OIDC**:
+   - Issuer: `https://authentik.192.168.39.200.nip.io/application/o/harbor/`
+   - Callback: `https://harbor.192.168.39.200.nip.io/c/oidc/callback`
+   - Configured via automated REST API configuration job (`auth_mode: oidc_auth`, auto onboarding enabled).
+
 ---
 
 ### 6. Observability & Pre-provisioned Dashboards
@@ -296,6 +313,7 @@ The LGTM Stack is deployed in the `monitoring` namespace and is managed via Argo
 | **CI/CD / Argo CD** | Application health & sync status, sync operation rate, server API request rates, repo server git operations | Argo CD Server (8083), Repo Server (8084), Controller (8082) |
 | **Identity / Authentik** | Outpost heartbeat, version info, authentication sync timestamps | Authentik Server metrics (port 9300) |
 | **Apps / Forgejo & Garage S3** | Forgejo user accesses, comments, attachments, build info; Garage S3 Admin API operations and request rates | Forgejo (port 3000), Garage (port 3903) |
+| **Registry / Harbor** | Projects count, repositories count, storage consumed, artifact counts, core API requests | Harbor Exporter (8001), Core (8001), Registry (8001) |
 | **Monitoring / LGTM Stack Overview** | Prometheus TSDB series & ingestion rate, Loki log lines/sec, Tempo trace throughput, OpenTelemetry Collector item throughput | Prometheus (9090), Loki (3100), Tempo (3200), OTel Collector (8889) |
 
 **Pre-configured Datasources in Grafana**:
