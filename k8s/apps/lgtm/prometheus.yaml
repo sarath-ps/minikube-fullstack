@@ -108,7 +108,6 @@ data:
               - 'argocd-server-metrics.argocd.svc:8083'
               - 'argocd-repo-server-metrics.argocd.svc:8084'
               - 'argocd-application-controller-metrics.argocd.svc:8082'
-              - 'argocd-dex-server.argocd.svc:5558'
 
       - job_name: 'cloudnative-pg'
         kubernetes_sd_configs:
