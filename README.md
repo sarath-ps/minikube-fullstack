@@ -118,13 +118,15 @@ flowchart TB
 │   │   │   ├── forgejo.yaml             # Forgejo app
 │   │   │   ├── forgejo-runner.yaml      # Forgejo runner app
 │   │   │   ├── garage.yaml              # Garage S3 app
-│   │   │   └── lgtm.yaml                # LGTM Observability Stack app
+│   │   │   ├── lgtm.yaml                # LGTM Observability Stack app
+│   │   │   └── metrics-server.yaml      # Kubernetes Metrics Server app
 │   │   ├── argocd-gateway.yaml          # Shared Gateway & HTTPRoute (192.168.39.200)
 │   │   ├── certificate.yaml             # Wildcard TLS Certificate (*.192.168.39.200.nip.io)
 │   │   ├── root-application.yaml        # Argo CD App-of-Apps root application
 │   │   └── values.yaml                  # Argo CD Helm values (OIDC SSO with Authentik)
 │   ├── platform/
-│   │   └── cloudnative-pg/              # Platform Helm chart definition
+│   │   ├── cloudnative-pg/              # Platform Helm chart definition
+│   │   └── metrics-server/              # Kubernetes Metrics Server Kustomize package
 │   ├── cloudsea-root-ca.crt             # Public Root CA certificate for local TLS
 │   ├── lb-ip-pool.yaml                  # Cilium LoadBalancer IP pool (192.168.39.200 - 219)
 │   ├── local-ca.yaml                    # cert-manager ClusterIssuer (cloudsea-local-ca)
@@ -244,6 +246,7 @@ kubectl apply -f k8s/argocd/root-application.yaml
 
 Argo CD will automatically sync:
 - `cloudnative-pg` (PostgreSQL Operator)
+- `metrics-server` (Kubernetes Metrics Server)
 - `authentik` (Identity Provider & OIDC SSO)
 - `forgejo` (Git Repository & SSH)
 - `forgejo-runner` (Actions CI/CD Runner)
@@ -272,7 +275,7 @@ Authentik automatically provisions OAuth2/OIDC applications and providers on fir
    - Issuer: `https://authentik.192.168.39.200.nip.io/application/o/garage-ui/`
    - Callback: `https://garage.192.168.39.200.nip.io/auth/oidc/callback`
    - Configured via `garage-ui` OIDC authentication provider.
-
+v
 ---
 
 ### 6. Observability & Pre-provisioned Dashboards
