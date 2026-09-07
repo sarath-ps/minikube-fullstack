@@ -6,8 +6,10 @@ namespace: garage
 resources:
   - namespace.yaml
   - secrets.yaml
+  - s3-credentials-secret.yaml
   - configmap.yaml
   - service.yaml
   - certificate.yaml
   - gateway.yaml
   - statefulset.yaml
+  - init-job.yaml

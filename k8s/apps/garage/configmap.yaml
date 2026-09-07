@@ -10,20 +10,19 @@ data:
     db_engine = "sqlite"
     replication_factor = 1
 
-    [rpc]
-    bind_addr = "[::]:3901"
-    rpc_secret_file = "/etc/garage/secrets/rpc-secret"
+    rpc_bind_addr = "0.0.0.0:3901"
+    rpc_secret = "427d27f286234d523018982227f74cebb4f5ab8b82a1ecf5b4a2262a92645825"
 
     [s3_api]
+    api_bind_addr = "0.0.0.0:3900"
     s3_region = "garage"
-    api_bind_addr = "[::]:3900"
     root_domain = ".s3.192.168.39.202.nip.io"
 
     [s3_web]
-    bind_addr = "[::]:3902"
+    bind_addr = "0.0.0.0:3902"
     root_domain = ".web.192.168.39.202.nip.io"
     index = "index.html"
 
     [admin]
-    api_bind_addr = "[::]:3903"
-    admin_token_file = "/etc/garage/secrets/admin-token"
+    api_bind_addr = "0.0.0.0:3903"
+    admin_token = "d71afbc926da6762fb341b4ba9de8f7100d61e0f2f0eee98401a56ec955b6eae"
