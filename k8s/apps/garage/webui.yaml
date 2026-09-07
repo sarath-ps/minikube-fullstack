@@ -39,6 +39,11 @@ data:
         email_attribute: "email"
         username_attribute: "preferred_username"
         name_attribute: "name"
+        role_attribute_path: "groups"
+        admin_roles:
+          - "authentik Admins"
+          - "akadmin"
+          - "admin"
 ---
 apiVersion: apps/v1
 kind: Deployment
