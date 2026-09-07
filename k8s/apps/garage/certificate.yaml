@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: garage-tls
+  namespace: garage
+spec:
+  secretName: garage-tls
+  issuerRef:
+    name: cloudsea-local-ca
+    kind: ClusterIssuer
+  dnsNames:
+    - s3.192.168.39.202.nip.io
+    - "*.s3.192.168.39.202.nip.io"
+    - garage.192.168.39.202.nip.io
+    - s3.cloudsea.local
+    - "*.s3.cloudsea.local"
