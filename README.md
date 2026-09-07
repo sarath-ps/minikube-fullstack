@@ -1,37 +1,36 @@
 # Fullstack K8s Platform Using Minikube
 
-An enterprise-grade private cloud platform running locally on Minikube with Cilium eBPF, Gateway API, cert-manager, Argo CD, CloudNativePG, and Forgejo.
+An enterprise-grade private cloud platform running locally on Minikube with Cilium eBPF CNI, Gateway API, cert-manager, Argo CD (App-of-Apps), CloudNativePG, Forgejo (with Actions Runner), and Garage S3 Object Storage (with Garage UI).
 
-See [Plan](plan.md) for the roadmap and [Phase 1 Docs](docs/phase1.md) for initial cluster setup notes.
+See [Plan](plan.md) for the roadmap and [Phase 1 Docs](docs/phase1.md) for foundational cluster setup notes.
 
 ---
 
 ## 🏛 Platform Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                             Cilium Gateway API                              │
-│              (L2 IP Pool: 192.168.39.200 - 192.168.39.219)                  │
-└───────┬─────────────────────────────────────────────────────────────┬───────┘
-        │                                                             │
-        │ https://argocd.192.168.39.200.nip.io                        │ https://forgejo.192.168.39.201.nip.io
-        ▼                                                             ▼
-┌──────────────────┐                                          ┌──────────────────┐
-│     Argo CD      │                                          │     Forgejo      │
-│  (GitOps Engine) │                                          │  (Git & Actions) │
-└───────┬──────────┘                                          └────────┬─────────┘
-        │                                                              │
-        │ Deploys & Manages                                            │ Uses DB
-        ▼                                                              ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         CloudNativePG Operator                              │
-│                        (Namespace: cnpg-system)                             │
-│                                                                             │
-│  ┌─────────────────────────┐           ┌─────────────────────────────────┐  │
-│  │ forgejo-postgres        │           │ authentik-postgres (upcoming)   │  │
-│  │ (PostgreSQL 16 Cluster) │           │ (PostgreSQL 16 Cluster)         │  │
-│  └─────────────────────────┘           └─────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────┐
+│                           Cilium Gateway API (Shared IP: 192.168.39.200)               │
+│                   Listeners: 80 (HTTP) | 443 (HTTPS / Wildcard TLS) | 22 (SSH)         │
+└───────┬───────────────────────────────┬───────────────────────────────┬───────────────┘
+        │                               │                               │
+        │ https://argocd...             │ https://forgejo...            │ https://garage...
+        │                               │ ssh://git@...:22              │ https://s3...
+        ▼                               ▼                               ▼
+┌──────────────────┐            ┌──────────────────┐            ┌──────────────────────┐
+│     Argo CD      │            │     Forgejo      │            │      Garage S3       │
+│  (GitOps Engine) │            │ (Git & Actions)  │            │  (Object Storage)    │
+└───────┬──────────┘            └───────┬──────────┘            └──────────┬───────────┘
+        │                               │                                  │
+        │ Manages Apps via App-of-Apps  │ Uses DB                          │ Dashboard
+        ▼                               ▼                                  ▼
+┌──────────────────────────────────────────────────┐            ┌──────────────────────┐
+│             CloudNativePG Operator               │            │   Noooste/Garage-UI  │
+│            (Namespace: cnpg-system)              │            │   (Admin Dashboard)  │
+│  ┌────────────────────────────────────────────┐  │            └──────────────────────┘
+│  │ forgejo-postgres (PostgreSQL 16 Cluster)   │  │
+│  └────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────┘
 ```
 
 ---
@@ -40,43 +39,75 @@ See [Plan](plan.md) for the roadmap and [Phase 1 Docs](docs/phase1.md) for initi
 
 ```text
 .
+├── 00-start-cluster.sh                  # Minikube startup & health recovery script
+├── 00-verify-minikube-cilium.sh         # Foundation verification script
 ├── k8s/
 │   ├── apps/
-│   │   └── forgejo/                     # Forgejo application Kustomize package
-│   │       ├── certificate.yaml         # cert-manager TLS certificate
-│   │       ├── deployment.yaml          # Forgejo v10 Deployment with initContainer
-│   │       ├── gateway.yaml             # Cilium Gateway & HTTPRoute (192.168.39.201)
-│   │       ├── kustomization.yaml       # Kustomize entrypoint for Forgejo
-│   │       ├── namespace.yaml           # forgejo namespace
-│   │       ├── postgres.yaml            # CloudNativePG Cluster CR for Forgejo DB
-│   │       ├── pvc.yaml                 # 10Gi data volume for Git storage
-│   │       ├── secrets.yaml             # Initial admin credentials & secret key
-│   │       └── service.yaml             # ClusterIP service (HTTP 3000 / SSH 2222)
-│   ├── platform/
-│   │   ├── cloudnative-pg/
-│   │   │   └── application.yaml         # Argo CD Application for CloudNativePG Operator
-│   │   ├── metrics-server/              # Cluster metrics
-│   │   └── kustomization.yaml           # Platform Kustomize package
+│   │   ├── forgejo/                     # Forgejo Git service Kustomize package
+│   │   │   ├── deployment.yaml          # Forgejo v10 Deployment with auto-init
+│   │   │   ├── gateway.yaml             # HTTPRoute & TCPRoute (SSH port 22)
+│   │   │   ├── kustomization.yaml       # Kustomize entrypoint
+│   │   │   ├── namespace.yaml           # forgejo namespace
+│   │   │   ├── postgres.yaml            # CloudNativePG Cluster CR
+│   │   │   ├── pvc.yaml                 # 10Gi standard PVC for Git repositories
+│   │   │   ├── secrets.yaml             # Initial admin credentials & secret key
+│   │   │   └── service.yaml             # ClusterIP service (HTTP 3000 / SSH 2222)
+│   │   ├── forgejo-runner/              # Forgejo Actions Runner (CI/CD)
+│   │   │   ├── deployment.yaml          # Act runner deployment (Docker-in-Docker)
+│   │   │   ├── kustomization.yaml       # Runner Kustomize entrypoint
+│   │   │   ├── rbac.yaml                # ServiceAccount and RBAC
+│   │   │   └── secret.yaml              # Runner registration token & config
+│   │   └── garage/                      # Garage S3 Object Storage & Web UI
+│   │       ├── configmap.yaml           # garage.toml configuration
+│   │       ├── gateway.yaml             # HTTPRoutes for S3 API & Garage UI
+│   │       ├── kustomization.yaml       # Garage Kustomize entrypoint
+│   │       ├── namespace.yaml           # garage namespace
+│   │       ├── s3-credentials-secret.yaml # Default S3 access key secret
+│   │       ├── secrets.yaml             # RPC secret & admin token
+│   │       ├── service.yaml             # ClusterIP & Headless services
+│   │       ├── statefulset.yaml         # Garage v2.1.0 StatefulSet
+│   │       └── webui.yaml               # Noooste/garage-ui Deployment & Service
 │   ├── argocd/
-│   │   ├── argocd-gateway.yaml          # Gateway & HTTPRoute for Argo CD (192.168.39.200)
-│   │   ├── ecrtificate.yaml             # Argo CD TLS certificate
+│   │   ├── applications/                # Argo CD App-of-Apps child manifests
+│   │   │   ├── cloudnative-pg.yaml      # CloudNativePG operator app
+│   │   │   ├── forgejo.yaml             # Forgejo app
+│   │   │   ├── forgejo-runner.yaml      # Forgejo runner app
+│   │   │   └── garage.yaml              # Garage S3 app
+│   │   ├── argocd-gateway.yaml          # Shared Gateway & HTTPRoute (192.168.39.200)
+│   │   ├── certificate.yaml             # Wildcard TLS Certificate (*.192.168.39.200.nip.io)
+│   │   ├── root-application.yaml        # Argo CD App-of-Apps root application
 │   │   └── values.yaml                  # Argo CD Helm values
-│   ├── cloudsea-root-ca.crt             # Public Root CA certificate for TLS verification
-│   ├── lb-ip-pool.yaml                  # Cilium LoadBalancer IP pool definition
+│   ├── platform/
+│   │   └── cloudnative-pg/              # Platform Helm chart definition
+│   ├── cloudsea-root-ca.crt             # Public Root CA certificate for local TLS
+│   ├── lb-ip-pool.yaml                  # Cilium LoadBalancer IP pool (192.168.39.200 - 219)
 │   ├── local-ca.yaml                    # cert-manager ClusterIssuer (cloudsea-local-ca)
 │   ├── minikube-lbpool-announcement-policy.yaml # Cilium L2 Announcement policy
 │   └── root-ca.yaml                     # Root CA certificate generator
 ├── docs/
-│   └── phase1.md                        # Phase 1 documentation
-├── 00-verify-minikube-cilium.sh         # Health check script for foundation
+│   └── phase1.md                        # Foundation documentation
 └── plan.md                              # Implementation roadmap
 ```
 
 ---
 
+## 📋 Platform Services & Access Endpoints
+
+All HTTP/HTTPS services and TCP SSH traffic are consolidated on the shared IP **`192.168.39.200`** via Cilium Gateway API.
+
+| Service | Hostname / URL | Port / Protocol | Credentials / Details |
+| :--- | :--- | :--- | :--- |
+| **Argo CD** | `https://argocd.192.168.39.200.nip.io/` | `443 / HTTPS` | User: `admin`<br>Password: retrieve from secret `argocd-initial-admin-secret` |
+| **Forgejo (Web)** | `https://forgejo.192.168.39.200.nip.io/` | `443 / HTTPS` | User: `forgejoadmin`<br>Password: `AdminForgejo2026!` |
+| **Forgejo (SSH)** | `git@forgejo.192.168.39.200.nip.io` | `22 / TCP` | Authenticate via SSH public key |
+| **Garage UI** | `https://garage.192.168.39.200.nip.io/` | `443 / HTTPS` | User: `admin`<br>Password: `AdminGarage2026!` *(or use Admin Token)* |
+| **Garage S3 API** | `https://s3.192.168.39.200.nip.io/` | `443 / HTTPS` | S3 Region: `garage`<br>Keys in `garage-s3-default-key` secret |
+
+---
+
 ## 🚀 Quick Start Guide
 
-### 1. Prerequisites & Cluster Foundation
+### 1. Prerequisites & Foundation Setup
 
 1. **Start Minikube** with Cilium CNI (kube-proxy disabled):
    ```bash
@@ -111,7 +142,7 @@ See [Plan](plan.md) for the roadmap and [Phase 1 Docs](docs/phase1.md) for initi
    kubectl apply -f k8s/minikube-lbpool-announcement-policy.yaml
    ```
 
-3. **Install cert-manager & Local CA**:
+3. **Install cert-manager & Local Wildcard CA**:
    ```bash
    helm repo add jetstack https://charts.jetstack.io && helm repo update
    helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set crds.enabled=true
@@ -121,115 +152,67 @@ See [Plan](plan.md) for the roadmap and [Phase 1 Docs](docs/phase1.md) for initi
 
 ---
 
-### 2. Deploy Argo CD (GitOps Engine)
+### 2. Install Argo CD & Shared Gateway
 
-1. **Install Argo CD**:
+1. **Deploy Argo CD**:
    ```bash
    helm repo add argo https://argoproj.github.io/argo-helm && helm repo update
    helm install argocd argo/argo-cd -n argocd --create-namespace -f k8s/argocd/values.yaml
-   kubectl apply -f k8s/argocd/ecrtificate.yaml
+   kubectl apply -f k8s/argocd/certificate.yaml
    kubectl apply -f k8s/argocd/argocd-gateway.yaml
    ```
 
-2. **Access Argo CD**:
-   * URL: `https://argocd.192.168.39.200.nip.io`
-   * Username: `admin`
-   * Password:
-     ```bash
-     kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
-     ```
-
----
-
-### 3. Deploy CloudNativePG Operator
-
-The CloudNativePG operator manages PostgreSQL clusters across all namespaces.
-
-Deploy via Argo CD:
-```bash
-kubectl apply -f k8s/platform/cloudnative-pg/application.yaml
-```
-
-Verify operator deployment:
-```bash
-kubectl get pods -n cnpg-system
-```
-
----
-
-### 4. Deploy Forgejo with Kustomize
-
-Forgejo uses a dedicated PostgreSQL 16 cluster managed by CloudNativePG.
-
-Deploy the complete Kustomize package:
-```bash
-kubectl apply -k k8s/apps/forgejo
-```
-
-What gets created:
-* `Namespace`: `forgejo`
-* `Cluster` (CNPG): `forgejo-postgres` (PostgreSQL 16 on standard PVC)
-* `Deployment`: Forgejo v10.0.1 with auto-configured PostgreSQL connection and admin bootstrap
-* `PVC`: 10Gi standard storage for Git repository data
-* `Certificate`: TLS cert signed by `cloudsea-local-ca`
-* `Gateway` & `HTTPRoute`: Exposed via Cilium Gateway at `forgejo.192.168.39.201.nip.io`
-
----
-
-### 5. Access & Verify Forgejo
-
-1. **Verify Pods and Database**:
+2. **Retrieve Initial Argo CD Password**:
    ```bash
-   kubectl get pods,cluster -n forgejo
-   ```
-
-2. **Web UI & API Access**:
-   * URL: `https://forgejo.192.168.39.201.nip.io`
-   * Admin Username: `forgejoadmin`
-   * Admin Password: `AdminForgejo2026!`
-
-3. **Verify Git Operations with Local Root CA**:
-   ```bash
-   # Clone using the local Root CA certificate
-   GIT_SSL_CAINFO=k8s/cloudsea-root-ca.crt \
-   git clone https://forgejoadmin:AdminForgejo2026%21@forgejo.192.168.39.201.nip.io/forgejoadmin/gitops-test.git
+   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
    ```
 
 ---
 
-## 🔄 Reusing CloudNativePG for Other Applications
+### 3. Deploy Forgejo & CloudNativePG
 
-Any application requiring a PostgreSQL database (e.g., Authentik, Harbor) can declare a `Cluster` custom resource in its namespace:
+1. **Deploy Forgejo & Database**:
+   ```bash
+   kubectl apply -k k8s/apps/forgejo
+   ```
 
-```yaml
-apiVersion: postgresql.cnpg.io/v1
-kind: Cluster
-metadata:
-  name: app-postgres
-  namespace: <app-namespace>
-spec:
-  instances: 1
-  imageName: ghcr.io/cloudnative-pg/postgresql:16.8
-  primaryUpdateStrategy: unsupervised
-  storage:
-    size: 10Gi
-    storageClass: standard
-  bootstrap:
-    initdb:
-      database: app_db
-      owner: app_user
-```
-
-CloudNativePG automatically creates `<cluster-name>-app` Secret with connection parameters (`host`, `port`, `user`, `password`, `dbname`, `uri`).
+2. **Push Platform Code into Forgejo**:
+   ```bash
+   # Add Forgejo remote and push repository
+   git remote add origin git@forgejo.192.168.39.200.nip.io:forgejoadmin/minikube-fullstack.git
+   git push -u origin main
+   ```
 
 ---
 
-## 📋 Service Endpoints Summary
+### 4. Enable Argo CD App-of-Apps
 
-| Service | Namespace | Hostname / URL | IP | Credentials |
-| :--- | :--- | :--- | :--- | :--- |
-| **Argo CD** | `argocd` | `https://argocd.192.168.39.200.nip.io` | `192.168.39.200` | `admin` / (secret `argocd-initial-admin-secret`) |
-| **Forgejo** | `forgejo` | `https://forgejo.192.168.39.201.nip.io` | `192.168.39.201` | `forgejoadmin` / `AdminForgejo2026!` |
-| **CloudNativePG** | `cnpg-system` | In-Cluster Operator | N/A | Managed via CRDs |
+Deploy the root application to manage all child applications via GitOps:
+
+```bash
+kubectl apply -f k8s/argocd/root-application.yaml
+```
+
+Argo CD will automatically sync:
+- `cloudnative-pg` (PostgreSQL Operator)
+- `forgejo` (Git Repository & SSH)
+- `forgejo-runner` (Actions CI/CD Runner)
+- `garage` (S3 Object Storage & Garage Web UI)
+
+---
+
+### 5. Starting the Cluster After Reboot
+
+When restarting Minikube or the host machine, run:
+
+```bash
+./00-start-cluster.sh
+```
+
+This script:
+1. Starts the `k8s-platform` Minikube profile.
+2. Waits for Cilium CNI to become healthy and ready.
+3. Refreshes application pods to re-attach Cilium eBPF network endpoints.
+4. Displays all active service URLs and credentials.
 
 
