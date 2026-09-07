@@ -14,6 +14,6 @@ kubectl rollout restart deploy,statefulset -n argocd -n forgejo -n garage -n cer
 
 echo "==> Cluster is ready!"
 echo "    ArgoCD:     https://argocd.192.168.39.200.nip.io/"
-echo "    Forgejo:    https://forgejo.192.168.39.201.nip.io/"
-echo "    Garage UI:  https://garage.192.168.39.202.nip.io/"
-echo "    Garage S3:  https://s3.192.168.39.202.nip.io/"
+echo "    Forgejo:    https://forgejo.192.168.39.200.nip.io/ (SSH: git@forgejo.192.168.39.200.nip.io:22)"
+echo "    Garage UI:  https://garage.192.168.39.200.nip.io/ (Admin login: admin / AdminGarage2026!)"
+echo "    Garage S3:  https://s3.192.168.39.200.nip.io/"
