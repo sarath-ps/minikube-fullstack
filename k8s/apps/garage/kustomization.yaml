@@ -12,4 +12,3 @@ resources:
   - certificate.yaml
   - gateway.yaml
   - statefulset.yaml
-  - init-job.yaml
