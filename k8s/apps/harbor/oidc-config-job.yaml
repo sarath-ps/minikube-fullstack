@@ -35,6 +35,7 @@ spec:
                   "oidc_client_id": "harbor",
                   "oidc_client_secret": "harbor-authentik-secret-2026",
                   "oidc_scope": "openid,profile,email",
+                  "oidc_user_claim": "preferred_username",
                   "oidc_auto_onboard": true,
                   "oidc_verify_cert": true,
                   "oidc_groups_claim": "groups",
