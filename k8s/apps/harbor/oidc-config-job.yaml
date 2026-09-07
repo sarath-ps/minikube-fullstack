@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: harbor-oidc-setup
+  namespace: harbor
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: harbor-oidc-setup
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: oidc-setup
+          image: curlimages/curl:8.10.1
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for Harbor Core API..."
+              until curl -s -k http://harbor.harbor.svc/api/v2.0/ping | grep -q "pong"; do
+                echo "Harbor is not ready yet, sleeping 5s..."
+                sleep 5
+              done
+              echo "Harbor API is online! Configuring Authentik OIDC authentication..."
+              curl -s -k -u "admin:AdminHarbor2026!" -X PUT "http://harbor.harbor.svc/api/v2.0/configurations" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "auth_mode": "oidc_auth",
+                  "oidc_name": "Authentik",
+                  "oidc_endpoint": "https://authentik.192.168.39.200.nip.io/application/o/harbor/",
+                  "oidc_client_id": "harbor",
+                  "oidc_client_secret": "harbor-authentik-secret-2026",
+                  "oidc_scope": "openid,profile,email",
+                  "oidc_auto_onboard": true,
+                  "oidc_verify_cert": true,
+                  "oidc_groups_claim": "groups",
+                  "oidc_admin_group": "authentik Admins"
+                }'
+              echo "OIDC configuration applied successfully!"

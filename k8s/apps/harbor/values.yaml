@@ -1,0 +1,45 @@
+expose:
+  type: clusterIP
+  tls:
+    enabled: false
+
+externalURL: https://harbor.192.168.39.200.nip.io
+
+harborAdminPassword: AdminHarbor2026!
+secretKey: HarborSecretKey2026SuperSecretKey!
+
+caBundleSecretName: cloudsea-root-ca
+
+database:
+  type: external
+  external:
+    host: harbor-postgres-rw.harbor.svc
+    port: "5432"
+    username: harbor
+    password: HarborPostgres2026!
+    coreDatabase: registry
+    sslmode: disable
+
+persistence:
+  enabled: true
+  resourcePolicy: "keep"
+  imageChartStorage:
+    disableredirect: true
+    type: s3
+    s3:
+      region: garage
+      bucket: harbor-registry
+      accesskey: GK5dd415c67d451d298f20f069
+      secretkey: 43fd1ad1110e02b5043d12c1a669a0a75a9160c6f11633e40ffa0c3c1cb2981d
+      regionendpoint: http://garage.garage.svc:3900
+      secure: false
+      v4auth: true
+
+redis:
+  type: internal
+
+trivy:
+  enabled: true
+
+metrics:
+  enabled: true

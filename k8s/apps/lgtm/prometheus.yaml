@@ -142,6 +142,13 @@ data:
         static_configs:
           - targets: ['garage.garage.svc:3903']
 
+      - job_name: 'harbor'
+        static_configs:
+          - targets:
+              - 'harbor-exporter.harbor.svc:8001'
+              - 'harbor-core.harbor.svc:8001'
+              - 'harbor-registry.harbor.svc:8001'
+
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
           - role: pod

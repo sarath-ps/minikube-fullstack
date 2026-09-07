@@ -17,15 +17,18 @@ flowchart TB
    gateway -->|"forgejo.192.168.39.200.nip.io<br/>SSH on port 22"| forgejo["Forgejo<br/>Git & CI/CD Actions"]
    gateway -->|"garage.192.168.39.200.nip.io<br/>s3.192.168.39.200.nip.io"| garage["Garage S3 / Garage UI<br/>OIDC SSO Login"]
    gateway -->|"grafana.192.168.39.200.nip.io"| grafana["Grafana<br/>OIDC SSO / Dashboards"]
+   gateway -->|"harbor.192.168.39.200.nip.io"| harbor["Harbor<br/>OCI Registry / OIDC SSO"]
 
    authentik -->|"OIDC / OAuth2"| argocd
    authentik -->|"OAuth2 / OIDC"| forgejo
    authentik -->|"OIDC"| garage
    authentik -->|"OIDC"| grafana
+   authentik -->|"OIDC"| harbor
 
    subgraph cnpg["CloudNativePG Operator<br/>Namespace: cnpg-system"]
       auth_db["authentik-postgres<br/>PostgreSQL 16"]
       forgejo_db["forgejo-postgres<br/>PostgreSQL 16"]
+      harbor_db["harbor-postgres<br/>PostgreSQL 16"]
    end
 
    subgraph lgtm["LGTM Stack<br/>Namespace: monitoring"]
@@ -37,6 +40,8 @@ flowchart TB
 
    authentik -->|"Uses CNPG DB"| auth_db
    forgejo -->|"Uses CNPG DB"| forgejo_db
+   harbor -->|"Uses CNPG DB"| harbor_db
+   harbor -->|"Stores images in S3"| garage
 
    grafana -->|"Queries"| prometheus
    grafana -->|"Reads logs from"| loki
@@ -150,6 +155,7 @@ All HTTP/HTTPS services and TCP SSH traffic are consolidated on the shared IP **
 | **Forgejo (Web)** | `https://forgejo.192.168.39.200.nip.io/` | `443 / HTTPS` | **SSO**: Click "Authentik" button on Sign In page<br>Local Admin: `forgejoadmin` / `AdminForgejo2026!` |
 | **Forgejo (SSH)** | `git@forgejo.192.168.39.200.nip.io` | `22 / TCP` | Authenticate via SSH public key |
 | **Grafana** | `https://grafana.192.168.39.200.nip.io/` | `443 / HTTPS` | **SSO**: Click "Sign in with Authentik"<br>Local Admin: `admin` / `AdminGrafana2026!` |
+| **Harbor** | `https://harbor.192.168.39.200.nip.io/` | `443 / HTTPS` | **SSO**: Click "LOG IN VIA OIDC PROVIDER"<br>Local Admin: `admin` / `AdminHarbor2026!` |
 | **Garage UI** | `https://garage.192.168.39.200.nip.io/` | `443 / HTTPS` | **SSO**: Click "Login with OIDC"<br>Local Admin: `admin` / `AdminGarage2026!` *(or use Admin Token)* |
 | **Garage S3 API** | `https://s3.192.168.39.200.nip.io/` | `443 / HTTPS` | S3 Region: `garage`<br>Keys in `garage-s3-default-key` secret |
 
