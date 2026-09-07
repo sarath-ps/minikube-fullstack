@@ -8,32 +8,43 @@ See [Plan](plan.md) for the roadmap and [Phase 1 Docs](docs/phase1.md) for found
 
 ## 🏛 Platform Architecture
 
-```text
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                            Cilium Gateway API (Shared IP: 192.168.39.200)                                              │
-│                                     Listeners: 80 (HTTP) | 443 (HTTPS / Wildcard TLS) | 22 (SSH)                                       │
-└───────┬───────────────────────────────┬───────────────────────────────┬─────────────────────────┬──────────────────────────────┬───────┘
-        │                               │                               │                         │                              │
-        │ https://authentik...          │ https://argocd...             │ https://forgejo...      │ https://garage...            │ https://grafana...
-        │ (OIDC / OAuth2 IdP)           │ (GitOps Engine)               │ (Git & CI/CD Actions)   │ (S3 UI & API)                │ (Observability UI)
-        ▼                               ▼                               ▼                         ▼                              ▼
-┌──────────────────┐            ┌──────────────────┐            ┌──────────────────┐      ┌──────────────────────┐       ┌──────────────────────┐
-│    Authentik     │◄───────────│     Argo CD      │            │     Forgejo      │      │      Garage S3       │       │       Grafana        │
-│ (Identity / SSO) │◄───────────────────────────────────────────│ (OAuth2 SSO)     │      │   Noooste/Garage-UI  │◄──────│ (OIDC SSO / Dashbd)  │
-└───────┬──────────┘◄─────────────────────────────────────────────────────────────────────│   (OIDC SSO Login)   │       └──────────┬───────────┘
-        │                       │                               │                         └──────────────────────┘                  │
-        │ Uses CNPG DB          │ Manages Apps via App-of-Apps  │ Uses CNPG DB                                                      │ Queries
-        ▼                       ▼                               ▼                                                                   ▼
-┌──────────────────────────────────────────────────────────────────────────────────┐                     ┌──────────────────────────────────────┐
-│                             CloudNativePG Operator                               │                     │              LGTM Stack              │
-│                            (Namespace: cnpg-system)                              │                     │       (Namespace: monitoring)        │
-│  ┌──────────────────────────────────────────┐  ┌──────────────────────────────┐  │                     │  ┌────────────┐  ┌────────────────┐  │
-│  │ authentik-postgres (PostgreSQL 16)       │  │ forgejo-postgres (PG 16)     │  │                     │  │ Prometheus │  │ Loki (Logs)    │  │
-│  └──────────────────────────────────────────┘  └──────────────────────────────┘  │                     │  └────────────┘  └────────────────┘  │
-└──────────────────────────────────────────────────────────────────────────────────┘                     │  ┌────────────┐  ┌────────────────┐  │
-                                                                                                         │  │ Tempo (Tr) │  │ OTel Collector │  │
-                                                                                                         │  └────────────┘  └────────────────┘  │
-                                                                                                         └──────────────────────────────────────┘
+```mermaid
+flowchart TB
+   gateway["Cilium Gateway API<br/>Shared IP: 192.168.39.200<br/>Listeners: 80 (HTTP) | 443 (HTTPS / Wildcard TLS) | 22 (SSH)"]
+
+   gateway -->|"authentik.192.168.39.200.nip.io"| authentik["Authentik<br/>Identity / SSO"]
+   gateway -->|"argocd.192.168.39.200.nip.io"| argocd["Argo CD<br/>GitOps Engine / App-of-Apps"]
+   gateway -->|"forgejo.192.168.39.200.nip.io<br/>SSH on port 22"| forgejo["Forgejo<br/>Git & CI/CD Actions"]
+   gateway -->|"garage.192.168.39.200.nip.io<br/>s3.192.168.39.200.nip.io"| garage["Garage S3 / Garage UI<br/>OIDC SSO Login"]
+   gateway -->|"grafana.192.168.39.200.nip.io"| grafana["Grafana<br/>OIDC SSO / Dashboards"]
+
+   authentik -->|"OIDC / OAuth2"| argocd
+   authentik -->|"OAuth2 / OIDC"| forgejo
+   authentik -->|"OIDC"| garage
+   authentik -->|"OIDC"| grafana
+
+   subgraph cnpg["CloudNativePG Operator<br/>Namespace: cnpg-system"]
+      auth_db["authentik-postgres<br/>PostgreSQL 16"]
+      forgejo_db["forgejo-postgres<br/>PostgreSQL 16"]
+   end
+
+   subgraph lgtm["LGTM Stack<br/>Namespace: monitoring"]
+      prometheus["Prometheus"]
+      loki["Loki"]
+      tempo["Tempo"]
+      otel["OTel Collector"]
+   end
+
+   authentik -->|"Uses CNPG DB"| auth_db
+   forgejo -->|"Uses CNPG DB"| forgejo_db
+
+   grafana -->|"Queries"| prometheus
+   grafana -->|"Reads logs from"| loki
+   grafana -->|"Reads traces from"| tempo
+
+   otel -->|"Ships metrics"| prometheus
+   otel -->|"Ships logs"| loki
+   otel -->|"Ships traces"| tempo
 ```
 
 ---
@@ -138,6 +149,7 @@ All HTTP/HTTPS services and TCP SSH traffic are consolidated on the shared IP **
 ### 1. Prerequisites & Foundation Setup
 
 1. **Start Minikube** with Cilium CNI (kube-proxy disabled):
+
    ```bash
    minikube start \
      --profile=k8s-platform \
