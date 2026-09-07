@@ -1,0 +1,16 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: forgejo-postgres
+  namespace: forgejo
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.8
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 5Gi
+    storageClass: standard
+  bootstrap:
+    initdb:
+      database: forgejo
+      owner: forgejo
