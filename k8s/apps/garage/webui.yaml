@@ -25,6 +25,20 @@ data:
         password: "AdminGarage2026!"
       token:
         enabled: true
+      oidc:
+        enabled: true
+        provider_name: "Authentik"
+        client_id: "garage-ui"
+        client_secret: "garage-authentik-secret-2026"
+        issuer_url: "https://authentik.192.168.39.200.nip.io/application/o/garage-ui/"
+        skip_issuer_check: true
+        scopes:
+          - openid
+          - email
+          - profile
+        email_attribute: "email"
+        username_attribute: "preferred_username"
+        name_attribute: "name"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -50,6 +64,9 @@ spec:
             - ./garage-ui
             - -config
             - /app/config/config.yaml
+          env:
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/cloudsea-root-ca.crt
           ports:
             - name: http
               containerPort: 8080
@@ -57,6 +74,9 @@ spec:
             - name: config
               mountPath: /app/config/config.yaml
               subPath: config.yaml
+            - name: root-ca
+              mountPath: /etc/ssl/certs/cloudsea-root-ca.crt
+              subPath: cloudsea-root-ca.crt
           livenessProbe:
             httpGet:
               path: /
@@ -80,6 +100,9 @@ spec:
         - name: config
           configMap:
             name: garage-ui-config
+        - name: root-ca
+          configMap:
+            name: cloudsea-root-ca
 ---
 apiVersion: v1
 kind: Service

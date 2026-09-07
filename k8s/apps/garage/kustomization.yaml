@@ -5,6 +5,7 @@ namespace: garage
 
 resources:
   - namespace.yaml
+  - ca-configmap.yaml
   - secrets.yaml
   - s3-credentials-secret.yaml
   - configmap.yaml

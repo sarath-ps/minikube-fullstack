@@ -116,12 +116,17 @@ spec:
                   - -c
                   - |
                     (
+                      update-ca-certificates || true
                       sleep 5
                       su-exec git forgejo admin user create --admin --username "$FORGEJO_ADMIN_USER" --password "$FORGEJO_ADMIN_PASSWORD" --email "$FORGEJO_ADMIN_EMAIL" --must-change-password=false || true
+                      su-exec git forgejo admin auth add-oauth --name Authentik --provider openidConnect --key forgejo --secret forgejo-authentik-secret-2026 --auto-discover-url https://authentik.192.168.39.200.nip.io/application/o/forgejo/.well-known/openid-configuration || true
                     ) &
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: root-ca
+              mountPath: /usr/local/share/ca-certificates/cloudsea-root-ca.crt
+              subPath: cloudsea-root-ca.crt
           livenessProbe:
             httpGet:
               path: /api/healthz
@@ -147,3 +152,6 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: forgejo-data
+        - name: root-ca
+          configMap:
+            name: cloudsea-root-ca
