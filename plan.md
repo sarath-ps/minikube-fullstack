@@ -1,5 +1,5 @@
 
-### Phase 1 — Kubernetes foundation
+### Phase 1 — Kubernetes foundation - Completed
 
 1. **Minikube + Podman + containerd + Cilium**
 2. **Cilium + Hubble**
@@ -7,35 +7,35 @@
 4. **cert-manager + local CA**
 5. **Persistent storage**
 
-### Phase 2 — GitOps bootstrap
+### Phase 2 — GitOps bootstrap 
 
-6. **Argo CD**
+6. **Argo CD** - Completed
 
    * Deploy using Helm
    * Expose through Cilium Gateway
    * HTTPS via cert-manager
    * Verify local admin login
 
-7. **CloudNativePG**
+7. **CloudNativePG** - Completed
 
    * Deploy the operator
    * Create the PostgreSQL cluster
    * Verify database connectivity and persistence
 
-8. **Garage**
+8. **Garage** - Completed
 
    * Deploy S3-compatible storage
    * Configure persistence
    * Verify S3 operations
 
-9. **Forgejo**
+9. **Forgejo** - Completed
 
    * Deploy
    * Configure its PostgreSQL database
    * HTTPS
    * Verify Git operations
 
-10. **Forgejo Runners**
+10. **Forgejo Runners** - Completed
 
     * Deploy/register
     * Execute a test CI workflow

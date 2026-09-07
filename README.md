@@ -1,6 +1,6 @@
 # Fullstack K8s Platform Using Minikube
 
-An enterprise-grade private cloud platform running locally on Minikube with Cilium eBPF CNI, Gateway API, cert-manager, Argo CD (App-of-Apps), CloudNativePG, Authentik (OIDC SSO Identity Provider), Forgejo (with Actions Runner), and Garage S3 Object Storage (with Garage UI).
+An enterprise-grade private cloud platform running locally on Minikube with Cilium eBPF CNI, Gateway API, cert-manager, Argo CD (App-of-Apps), CloudNativePG, Authentik (OIDC SSO Identity Provider), Forgejo (with Actions Runner), Garage S3 Object Storage (with Garage UI), and full LGTM Observability Stack (Loki, Grafana with Authentik SSO, Tempo, Prometheus & OpenTelemetry Collector).
 
 See [Plan](plan.md) for the roadmap and [Phase 1 Docs](docs/phase1.md) for foundational cluster setup notes.
 
@@ -9,28 +9,31 @@ See [Plan](plan.md) for the roadmap and [Phase 1 Docs](docs/phase1.md) for found
 ## 🏛 Platform Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   Cilium Gateway API (Shared IP: 192.168.39.200)                        │
-│                           Listeners: 80 (HTTP) | 443 (HTTPS / Wildcard TLS) | 22 (SSH)                  │
-└───────┬───────────────────────────────┬───────────────────────────────┬─────────────────────────┬───────┘
-        │                               │                               │                         │
-        │ https://authentik...          │ https://argocd...             │ https://forgejo...      │ https://garage...
-        │ (OIDC / OAuth2 IdP)           │ (GitOps Engine)               │ (Git & CI/CD Actions)   │ (S3 UI & API)
-        ▼                               ▼                               ▼                         ▼
-┌──────────────────┐            ┌──────────────────┐            ┌──────────────────┐      ┌──────────────────────┐
-│    Authentik     │◄───────────│     Argo CD      │            │     Forgejo      │      │      Garage S3       │
-│ (Identity / SSO) │◄───────────────────────────────────────────│ (OAuth2 SSO)     │      │   Noooste/Garage-UI  │
-└───────┬──────────┘◄─────────────────────────────────────────────────────────────────────│   (OIDC SSO Login)   │
-        │                       │                               │                         └──────────────────────┘
-        │ Uses CNPG DB          │ Manages Apps via App-of-Apps  │ Uses CNPG DB
-        ▼                       ▼                               ▼
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                             CloudNativePG Operator                               │
-│                            (Namespace: cnpg-system)                              │
-│  ┌──────────────────────────────────────────┐  ┌──────────────────────────────┐  │
-│  │ authentik-postgres (PostgreSQL 16)       │  │ forgejo-postgres (PG 16)     │  │
-│  └──────────────────────────────────────────┘  └──────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                            Cilium Gateway API (Shared IP: 192.168.39.200)                                              │
+│                                     Listeners: 80 (HTTP) | 443 (HTTPS / Wildcard TLS) | 22 (SSH)                                       │
+└───────┬───────────────────────────────┬───────────────────────────────┬─────────────────────────┬──────────────────────────────┬───────┘
+        │                               │                               │                         │                              │
+        │ https://authentik...          │ https://argocd...             │ https://forgejo...      │ https://garage...            │ https://grafana...
+        │ (OIDC / OAuth2 IdP)           │ (GitOps Engine)               │ (Git & CI/CD Actions)   │ (S3 UI & API)                │ (Observability UI)
+        ▼                               ▼                               ▼                         ▼                              ▼
+┌──────────────────┐            ┌──────────────────┐            ┌──────────────────┐      ┌──────────────────────┐       ┌──────────────────────┐
+│    Authentik     │◄───────────│     Argo CD      │            │     Forgejo      │      │      Garage S3       │       │       Grafana        │
+│ (Identity / SSO) │◄───────────────────────────────────────────│ (OAuth2 SSO)     │      │   Noooste/Garage-UI  │◄──────│ (OIDC SSO / Dashbd)  │
+└───────┬──────────┘◄─────────────────────────────────────────────────────────────────────│   (OIDC SSO Login)   │       └──────────┬───────────┘
+        │                       │                               │                         └──────────────────────┘                  │
+        │ Uses CNPG DB          │ Manages Apps via App-of-Apps  │ Uses CNPG DB                                                      │ Queries
+        ▼                       ▼                               ▼                                                                   ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐                     ┌──────────────────────────────────────┐
+│                             CloudNativePG Operator                               │                     │              LGTM Stack              │
+│                            (Namespace: cnpg-system)                              │                     │       (Namespace: monitoring)        │
+│  ┌──────────────────────────────────────────┐  ┌──────────────────────────────┐  │                     │  ┌────────────┐  ┌────────────────┐  │
+│  │ authentik-postgres (PostgreSQL 16)       │  │ forgejo-postgres (PG 16)     │  │                     │  │ Prometheus │  │ Loki (Logs)    │  │
+│  └──────────────────────────────────────────┘  └──────────────────────────────┘  │                     │  └────────────┘  └────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────────┘                     │  ┌────────────┐  ┌────────────────┐  │
+                                                                                                         │  │ Tempo (Tr) │  │ OTel Collector │  │
+                                                                                                         │  └────────────┘  └────────────────┘  │
+                                                                                                         └──────────────────────────────────────┘
 ```
 
 ---
@@ -44,7 +47,7 @@ See [Plan](plan.md) for the roadmap and [Phase 1 Docs](docs/phase1.md) for found
 ├── k8s/
 │   ├── apps/
 │   │   ├── authentik/                   # Authentik Identity Provider & OIDC SSO
-│   │   │   ├── blueprints.yaml          # Auto-provisioning for Argo CD, Forgejo & Garage UI
+│   │   │   ├── blueprints.yaml          # Auto-provisioning for Argo CD, Forgejo, Garage UI & Grafana
 │   │   │   ├── gateway.yaml             # HTTPRoute for authentik.192.168.39.200.nip.io
 │   │   │   ├── kustomization.yaml       # Authentik Kustomize entrypoint
 │   │   │   ├── namespace.yaml           # authentik namespace
@@ -68,23 +71,34 @@ See [Plan](plan.md) for the roadmap and [Phase 1 Docs](docs/phase1.md) for found
 │   │   │   ├── kustomization.yaml       # Runner Kustomize entrypoint
 │   │   │   ├── rbac.yaml                # ServiceAccount and RBAC
 │   │   │   └── secret.yaml              # Runner registration token & config
-│   │   └── garage/                      # Garage S3 Object Storage & Web UI
-│   │       ├── configmap.yaml           # garage.toml configuration
-│   │       ├── gateway.yaml             # HTTPRoutes for S3 API & Garage UI
-│   │       ├── kustomization.yaml       # Garage Kustomize entrypoint
-│   │       ├── namespace.yaml           # garage namespace
-│   │       ├── s3-credentials-secret.yaml # Default S3 access key secret
-│   │       ├── secrets.yaml             # RPC secret & admin token
-│   │       ├── service.yaml             # ClusterIP & Headless services
-│   │       ├── statefulset.yaml         # Garage v2.1.0 StatefulSet
-│   │       └── webui.yaml               # Noooste/garage-ui Deployment (OIDC configured)
+│   │   ├── garage/                      # Garage S3 Object Storage & Web UI
+│   │   │   ├── configmap.yaml           # garage.toml configuration
+│   │   │   ├── gateway.yaml             # HTTPRoutes for S3 API & Garage UI
+│   │   │   ├── kustomization.yaml       # Garage Kustomize entrypoint
+│   │   │   ├── namespace.yaml           # garage namespace
+│   │   │   ├── s3-credentials-secret.yaml # Default S3 access key secret
+│   │   │   ├── secrets.yaml             # RPC secret & admin token
+│   │   │   ├── service.yaml             # ClusterIP & Headless services
+│   │   │   ├── statefulset.yaml         # Garage v2.1.0 StatefulSet
+│   │   │   └── webui.yaml               # Noooste/garage-ui Deployment (OIDC configured)
+│   │   └── lgtm/                        # LGTM Observability Stack
+│   │       ├── ca-configmap.yaml        # Local Root CA configmap for internal TLS
+│   │       ├── gateway.yaml             # HTTPRoute for grafana.192.168.39.200.nip.io
+│   │       ├── grafana.yaml             # Grafana v11 with Authentik SSO & preconfigured datasources
+│   │       ├── kustomization.yaml       # LGTM Kustomize entrypoint
+│   │       ├── loki.yaml                # Loki v3 Log Aggregation StatefulSet & Service
+│   │       ├── namespace.yaml           # monitoring namespace
+│   │       ├── otel-collector.yaml      # OpenTelemetry Collector DaemonSet (Logs/Metrics/Traces)
+│   │       ├── prometheus.yaml          # Prometheus Server & Scrape Configurations
+│   │       └── tempo.yaml               # Tempo v2.6 Distributed Tracing StatefulSet & Service
 │   ├── argocd/
 │   │   ├── applications/                # Argo CD App-of-Apps child manifests
 │   │   │   ├── authentik.yaml           # Authentik Identity Provider app
 │   │   │   ├── cloudnative-pg.yaml      # CloudNativePG operator app
 │   │   │   ├── forgejo.yaml             # Forgejo app
 │   │   │   ├── forgejo-runner.yaml      # Forgejo runner app
-│   │   │   └── garage.yaml              # Garage S3 app
+│   │   │   ├── garage.yaml              # Garage S3 app
+│   │   │   └── lgtm.yaml                # LGTM Observability Stack app
 │   │   ├── argocd-gateway.yaml          # Shared Gateway & HTTPRoute (192.168.39.200)
 │   │   ├── certificate.yaml             # Wildcard TLS Certificate (*.192.168.39.200.nip.io)
 │   │   ├── root-application.yaml        # Argo CD App-of-Apps root application
@@ -113,6 +127,7 @@ All HTTP/HTTPS services and TCP SSH traffic are consolidated on the shared IP **
 | **Argo CD** | `https://argocd.192.168.39.200.nip.io/` | `443 / HTTPS` | **SSO**: Click "LOG IN VIA AUTHENTIK"<br>Local Admin: `admin` / retrieve from secret `argocd-initial-admin-secret` |
 | **Forgejo (Web)** | `https://forgejo.192.168.39.200.nip.io/` | `443 / HTTPS` | **SSO**: Click "Authentik" button on Sign In page<br>Local Admin: `forgejoadmin` / `AdminForgejo2026!` |
 | **Forgejo (SSH)** | `git@forgejo.192.168.39.200.nip.io` | `22 / TCP` | Authenticate via SSH public key |
+| **Grafana** | `https://grafana.192.168.39.200.nip.io/` | `443 / HTTPS` | **SSO**: Click "Sign in with Authentik"<br>Local Admin: `admin` / `AdminGrafana2026!` |
 | **Garage UI** | `https://garage.192.168.39.200.nip.io/` | `443 / HTTPS` | **SSO**: Click "Login with OIDC"<br>Local Admin: `admin` / `AdminGarage2026!` *(or use Admin Token)* |
 | **Garage S3 API** | `https://s3.192.168.39.200.nip.io/` | `443 / HTTPS` | S3 Region: `garage`<br>Keys in `garage-s3-default-key` secret |
 
@@ -212,6 +227,7 @@ Argo CD will automatically sync:
 - `forgejo` (Git Repository & SSH)
 - `forgejo-runner` (Actions CI/CD Runner)
 - `garage` (S3 Object Storage & Garage Web UI)
+- `lgtm` (Loki, Grafana, Tempo, Prometheus, OpenTelemetry Collector)
 
 ---
 
@@ -227,7 +243,11 @@ Authentik automatically provisions OAuth2/OIDC applications and providers on fir
    - Issuer: `https://authentik.192.168.39.200.nip.io/application/o/forgejo/`
    - Callback: `https://forgejo.192.168.39.200.nip.io/user/oauth2/authentik/callback`
    - Automatically registered via `forgejo admin auth add-oauth` in Forgejo container lifecycle.
-3. **Garage UI OIDC**:
+3. **Grafana OIDC**:
+   - Issuer: `https://authentik.192.168.39.200.nip.io/application/o/grafana/`
+   - Callback: `https://grafana.192.168.39.200.nip.io/login/generic_oauth`
+   - Configured via Grafana `[auth.generic_oauth]` with local Root CA trust and automatic admin role mapping.
+4. **Garage UI OIDC**:
    - Issuer: `https://authentik.192.168.39.200.nip.io/application/o/garage-ui/`
    - Callback: `https://garage.192.168.39.200.nip.io/auth/oidc/callback`
    - Configured via `garage-ui` OIDC authentication provider.
