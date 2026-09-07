@@ -32,9 +32,6 @@ spec:
               echo "PostgreSQL is ready!"
               echo "Cleaning up any stale queue locks..."
               find /data/gitea/queues -name LOCK -delete 2>/dev/null || true
-              if [ -f /data/gitea/conf/app.ini ]; then
-                grep -q "\[metrics\]" /data/gitea/conf/app.ini || printf "\n[metrics]\nENABLED = true\nENABLED_ISSUE_BY_LABEL = true\nENABLED_ISSUE_BY_REPOSITORY = true\n" >> /data/gitea/conf/app.ini
-              fi
           env:
             - name: PGPASSWORD
               valueFrom:
@@ -147,6 +144,9 @@ spec:
                   - |
                     (
                       update-ca-certificates || true
+                      if [ -f /data/gitea/conf/app.ini ]; then
+                        grep -q "\[metrics\]" /data/gitea/conf/app.ini || su-exec git /bin/sh -c 'printf "\n[metrics]\nENABLED = true\nENABLED_ISSUE_BY_LABEL = true\nENABLED_ISSUE_BY_REPOSITORY = true\n" >> /data/gitea/conf/app.ini'
+                      fi
                       sleep 5
                       su-exec git forgejo admin user create --admin --username "$FORGEJO_ADMIN_USER" --password "$FORGEJO_ADMIN_PASSWORD" --email "$FORGEJO_ADMIN_EMAIL" --must-change-password=false || true
                       su-exec git forgejo admin auth update-oauth --id 2 --name Authentik --provider openidConnect --key forgejo --secret forgejo-authentik-secret-2026 --auto-discover-url https://authentik.192.168.39.200.nip.io/application/o/forgejo/.well-known/openid-configuration --scopes openid --scopes profile --scopes email || su-exec git forgejo admin auth add-oauth --name Authentik --provider openidConnect --key forgejo --secret forgejo-authentik-secret-2026 --auto-discover-url https://authentik.192.168.39.200.nip.io/application/o/forgejo/.well-known/openid-configuration --scopes openid --scopes profile --scopes email || true
