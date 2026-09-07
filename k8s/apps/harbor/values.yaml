@@ -6,7 +6,7 @@ expose:
 externalURL: https://harbor.192.168.39.200.nip.io
 
 harborAdminPassword: AdminHarbor2026!
-secretKey: HarborSecretKey2026SuperSecretKey!
+secretKey: HarborSecretKey2026SuperSecret32
 
 caBundleSecretName: cloudsea-root-ca
 
