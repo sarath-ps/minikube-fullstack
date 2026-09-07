@@ -54,9 +54,9 @@ spec:
             - name: FORGEJO__DEFAULT__RUN_MODE
               value: "prod"
             - name: FORGEJO__server__DOMAIN
-              value: "forgejo.192.168.39.201.nip.io"
+              value: "forgejo.192.168.39.200.nip.io"
             - name: FORGEJO__server__ROOT_URL
-              value: "https://forgejo.192.168.39.201.nip.io/"
+              value: "https://forgejo.192.168.39.200.nip.io/"
             - name: FORGEJO__server__HTTP_PORT
               value: "3000"
             - name: FORGEJO__server__SSH_PORT

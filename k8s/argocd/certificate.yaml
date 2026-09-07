@@ -9,4 +9,11 @@ spec:
     name: cloudsea-local-ca
     kind: ClusterIssuer
   dnsNames:
-    - argocd.192.168.39.200.nip.io
+    - "*.192.168.39.200.nip.io"
+    - "argocd.192.168.39.200.nip.io"
+    - "forgejo.192.168.39.200.nip.io"
+    - "garage.192.168.39.200.nip.io"
+    - "garage-ui.192.168.39.200.nip.io"
+    - "s3.192.168.39.200.nip.io"
+    - "*.s3.192.168.39.200.nip.io"
+    - "*.cloudsea.local"

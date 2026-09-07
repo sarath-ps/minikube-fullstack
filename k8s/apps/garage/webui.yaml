@@ -1,40 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garage-ui-config
+  namespace: garage
+data:
+  config.yaml: |
+    server:
+      host: "0.0.0.0"
+      port: 8080
+      environment: "production"
+      domain: "garage.192.168.39.200.nip.io"
+      root_url: "https://garage.192.168.39.200.nip.io"
+
+    garage:
+      endpoint: "http://garage.garage.svc:3900"
+      region: "garage"
+      admin_endpoint: "http://garage.garage.svc:3903"
+      admin_token: "d71afbc926da6762fb341b4ba9de8f7100d61e0f2f0eee98401a56ec955b6eae"
+
+    auth:
+      admin:
+        enabled: true
+        username: "admin"
+        password: "AdminGarage2026!"
+      token:
+        enabled: true
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: garage-webui
+  name: garage-ui
   namespace: garage
   labels:
-    app.kubernetes.io/name: garage-webui
+    app.kubernetes.io/name: garage-ui
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: garage-webui
+      app.kubernetes.io/name: garage-ui
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: garage-webui
+        app.kubernetes.io/name: garage-ui
     spec:
       containers:
-        - name: webui
-          image: khairul169/garage-webui:latest
+        - name: garage-ui
+          image: noooste/garage-ui:latest
+          command:
+            - ./garage-ui
+            - -config
+            - /app/config/config.yaml
           ports:
             - name: http
-              containerPort: 3909
-          env:
-            - name: API_BASE_URL
-              value: "http://garage.garage.svc:3903"
-            - name: API_ADMIN_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: garage-secrets
-                  key: admin-token
-            - name: S3_ENDPOINT_URL
-              value: "https://s3.192.168.39.202.nip.io"
+              containerPort: 8080
           volumeMounts:
             - name: config
-              mountPath: /etc/garage.toml
-              subPath: garage.toml
+              mountPath: /app/config/config.yaml
+              subPath: config.yaml
           livenessProbe:
             httpGet:
               path: /
@@ -57,20 +79,20 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: garage-config
+            name: garage-ui-config
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: garage-webui
+  name: garage-ui
   namespace: garage
   labels:
-    app.kubernetes.io/name: garage-webui
+    app.kubernetes.io/name: garage-ui
 spec:
   type: ClusterIP
   ports:
     - name: http
-      port: 3909
-      targetPort: 3909
+      port: 8080
+      targetPort: 8080
   selector:
-    app.kubernetes.io/name: garage-webui
+    app.kubernetes.io/name: garage-ui

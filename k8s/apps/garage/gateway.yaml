@@ -1,42 +1,15 @@
 apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: garage
-  namespace: garage
-spec:
-  gatewayClassName: cilium
-  listeners:
-    - name: http
-      protocol: HTTP
-      port: 80
-      hostname: "*.192.168.39.202.nip.io"
-      allowedRoutes:
-        namespaces:
-          from: Same
-
-    - name: https
-      protocol: HTTPS
-      port: 443
-      hostname: "*.192.168.39.202.nip.io"
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - name: garage-tls
-            kind: Secret
-      allowedRoutes:
-        namespaces:
-          from: Same
----
-apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: garage-s3
   namespace: garage
 spec:
   parentRefs:
-    - name: garage
+    - name: argocd
+      namespace: argocd
   hostnames:
-    - "s3.192.168.39.202.nip.io"
+    - "s3.192.168.39.200.nip.io"
+    - "*.s3.192.168.39.200.nip.io"
   rules:
     - matches:
         - path:
@@ -49,19 +22,20 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: garage-webui
+  name: garage-ui
   namespace: garage
 spec:
   parentRefs:
-    - name: garage
+    - name: argocd
+      namespace: argocd
   hostnames:
-    - "garage.192.168.39.202.nip.io"
-    - "garage-ui.192.168.39.202.nip.io"
+    - "garage.192.168.39.200.nip.io"
+    - "garage-ui.192.168.39.200.nip.io"
   rules:
     - matches:
         - path:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: garage-webui
-          port: 3909
+        - name: garage-ui
+          port: 8080
