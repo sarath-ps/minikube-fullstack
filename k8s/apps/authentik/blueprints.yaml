@@ -57,6 +57,9 @@ data:
           client_secret: forgejo-authentik-secret-2026
           redirect_uris:
             - matching_mode: strict
+              url: https://forgejo.192.168.39.200.nip.io/user/oauth2/Authentik/callback
+              redirect_uri_type: authorization
+            - matching_mode: strict
               url: https://forgejo.192.168.39.200.nip.io/user/oauth2/authentik/callback
               redirect_uri_type: authorization
           grant_types:
