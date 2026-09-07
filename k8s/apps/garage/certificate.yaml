@@ -12,5 +12,6 @@ spec:
     - s3.192.168.39.202.nip.io
     - "*.s3.192.168.39.202.nip.io"
     - garage.192.168.39.202.nip.io
+    - garage-ui.192.168.39.202.nip.io
     - s3.cloudsea.local
     - "*.s3.cloudsea.local"

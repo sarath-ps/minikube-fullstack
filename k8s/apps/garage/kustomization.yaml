@@ -12,3 +12,4 @@ resources:
   - certificate.yaml
   - gateway.yaml
   - statefulset.yaml
+  - webui.yaml
