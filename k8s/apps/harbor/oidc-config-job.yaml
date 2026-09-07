@@ -3,6 +3,9 @@ kind: Job
 metadata:
   name: harbor-oidc-setup
   namespace: harbor
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   template:
     metadata:
@@ -18,7 +21,7 @@ spec:
             - -c
             - |
               echo "Waiting for Harbor Core API..."
-              until curl -s -k http://harbor.harbor.svc/api/v2.0/ping | grep -q "pong"; do
+              until curl -s -k http://harbor.harbor.svc/api/v2.0/ping | grep -qi "pong"; do
                 echo "Harbor is not ready yet, sleeping 5s..."
                 sleep 5
               done
