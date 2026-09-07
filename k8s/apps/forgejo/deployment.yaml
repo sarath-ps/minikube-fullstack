@@ -100,6 +100,10 @@ spec:
               value: "true"
             - name: FORGEJO__oauth2_client__ACCOUNT_LINKING
               value: "auto"
+            - name: FORGEJO__oauth2_client__OPENID_CONNECT_SCOPES
+              value: "openid profile email"
+            - name: FORGEJO__oauth2_client__USERNAME
+              value: "preferred_username"
             - name: FORGEJO__oauth2_client__UPDATE_AVATAR
               value: "true"
             - name: FORGEJO__actions__ENABLED
@@ -130,7 +134,7 @@ spec:
                       update-ca-certificates || true
                       sleep 5
                       su-exec git forgejo admin user create --admin --username "$FORGEJO_ADMIN_USER" --password "$FORGEJO_ADMIN_PASSWORD" --email "$FORGEJO_ADMIN_EMAIL" --must-change-password=false || true
-                      su-exec git forgejo admin auth add-oauth --name Authentik --provider openidConnect --key forgejo --secret forgejo-authentik-secret-2026 --auto-discover-url https://authentik.192.168.39.200.nip.io/application/o/forgejo/.well-known/openid-configuration || true
+                      su-exec git forgejo admin auth update-oauth --id 2 --name Authentik --provider openidConnect --key forgejo --secret forgejo-authentik-secret-2026 --auto-discover-url https://authentik.192.168.39.200.nip.io/application/o/forgejo/.well-known/openid-configuration --scopes openid --scopes profile --scopes email || su-exec git forgejo admin auth add-oauth --name Authentik --provider openidConnect --key forgejo --secret forgejo-authentik-secret-2026 --auto-discover-url https://authentik.192.168.39.200.nip.io/application/o/forgejo/.well-known/openid-configuration --scopes openid --scopes profile --scopes email || true
                     ) &
           volumeMounts:
             - name: data
