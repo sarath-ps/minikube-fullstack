@@ -13,6 +13,7 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+
     - name: https
       protocol: HTTPS
       port: 443
@@ -22,6 +23,13 @@ spec:
         certificateRefs:
           - name: forgejo-tls
             kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: Same
+
+    - name: ssh
+      protocol: TCP
+      port: 22
       allowedRoutes:
         namespaces:
           from: Same
@@ -42,3 +50,17 @@ spec:
       backendRefs:
         - name: forgejo
           port: 3000
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: TCPRoute
+metadata:
+  name: forgejo-ssh
+  namespace: forgejo
+spec:
+  parentRefs:
+    - name: forgejo
+      sectionName: ssh
+  rules:
+    - backendRefs:
+        - name: forgejo
+          port: 2222

@@ -60,7 +60,7 @@ spec:
             - name: FORGEJO__server__HTTP_PORT
               value: "3000"
             - name: FORGEJO__server__SSH_PORT
-              value: "2222"
+              value: "22"
             - name: FORGEJO__server__SSH_LISTEN_PORT
               value: "2222"
             - name: FORGEJO__server__START_SSH_SERVER
@@ -121,7 +121,7 @@ spec:
                     ) &
           volumeMounts:
             - name: data
-              mountPath: /var/lib/gitea
+              mountPath: /data
           livenessProbe:
             httpGet:
               path: /api/healthz
