@@ -30,12 +30,17 @@ spec:
                 sleep 2
               done
               echo "PostgreSQL is ready!"
+              echo "Cleaning up any stale queue locks..."
+              find /data/gitea/queues -name LOCK -delete 2>/dev/null || true
           env:
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
                   name: forgejo-postgres-app
                   key: password
+          volumeMounts:
+            - name: data
+              mountPath: /data
       containers:
         - name: forgejo
           image: code.forgejo.org/forgejo/forgejo:10.0.1
@@ -91,6 +96,12 @@ spec:
               value: "false"
             - name: FORGEJO__service__REQUIRE_SIGNIN_VIEW
               value: "false"
+            - name: FORGEJO__oauth2_client__ENABLE_AUTO_REGISTRATION
+              value: "true"
+            - name: FORGEJO__oauth2_client__ACCOUNT_LINKING
+              value: "auto"
+            - name: FORGEJO__oauth2_client__UPDATE_AVATAR
+              value: "true"
             - name: FORGEJO__actions__ENABLED
               value: "true"
             - name: FORGEJO_ADMIN_USER
