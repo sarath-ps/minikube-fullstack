@@ -32,6 +32,9 @@ spec:
               echo "PostgreSQL is ready!"
               echo "Cleaning up any stale queue locks..."
               find /data/gitea/queues -name LOCK -delete 2>/dev/null || true
+              if [ -f /data/gitea/conf/app.ini ]; then
+                grep -q "\[metrics\]" /data/gitea/conf/app.ini || printf "\n[metrics]\nENABLED = true\nENABLED_ISSUE_BY_LABEL = true\nENABLED_ISSUE_BY_REPOSITORY = true\n" >> /data/gitea/conf/app.ini
+              fi
           env:
             - name: PGPASSWORD
               valueFrom:
@@ -105,6 +108,18 @@ spec:
             - name: FORGEJO__oauth2_client__USERNAME
               value: "preferred_username"
             - name: FORGEJO__oauth2_client__UPDATE_AVATAR
+              value: "true"
+            - name: FORGEJO__metrics__ENABLED
+              value: "true"
+            - name: GITEA__metrics__ENABLED
+              value: "true"
+            - name: FORGEJO__metrics__ENABLED_ISSUE_BY_LABEL
+              value: "true"
+            - name: GITEA__metrics__ENABLED_ISSUE_BY_LABEL
+              value: "true"
+            - name: FORGEJO__metrics__ENABLED_ISSUE_BY_REPOSITORY
+              value: "true"
+            - name: GITEA__metrics__ENABLED_ISSUE_BY_REPOSITORY
               value: "true"
             - name: FORGEJO__actions__ENABLED
               value: "true"

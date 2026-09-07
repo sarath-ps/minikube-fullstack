@@ -101,6 +101,72 @@ data:
       - job_name: 'tempo'
         static_configs:
           - targets: ['tempo.monitoring.svc:3200']
+
+      - job_name: 'argocd'
+        static_configs:
+          - targets:
+              - 'argocd-server-metrics.argocd.svc:8083'
+              - 'argocd-repo-server-metrics.argocd.svc:8084'
+              - 'argocd-application-controller-metrics.argocd.svc:8082'
+              - 'argocd-dex-server.argocd.svc:5558'
+
+      - job_name: 'cloudnative-pg'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_cnpg_io_cluster]
+            action: keep
+            regex: .+
+          - source_labels: [__meta_kubernetes_pod_ip]
+            action: replace
+            target_label: __address__
+            replacement: ${1}:9187
+          - source_labels: [__meta_kubernetes_pod_label_cnpg_io_cluster]
+            action: replace
+            target_label: cluster
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      - job_name: 'authentik'
+        static_configs:
+          - targets: ['authentik-server.authentik.svc:9300']
+
+      - job_name: 'forgejo'
+        static_configs:
+          - targets: ['forgejo.forgejo.svc:3000']
+
+      - job_name: 'garage'
+        static_configs:
+          - targets: ['garage.garage.svc:3903']
+
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

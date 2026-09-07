@@ -10,5 +10,6 @@ resources:
   - loki.yaml
   - tempo.yaml
   - otel-collector.yaml
+  - dashboards.yaml
   - grafana.yaml
   - gateway.yaml

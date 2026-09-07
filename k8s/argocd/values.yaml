@@ -54,9 +54,23 @@ configs:
 
 server:
   replicas: 1
+  metrics:
+    enabled: true
 
   httproute:
     enabled: false
 
   ingress:
     enabled: false
+
+controller:
+  metrics:
+    enabled: true
+
+repoServer:
+  metrics:
+    enabled: true
+
+dex:
+  metrics:
+    enabled: true
