@@ -94,6 +94,15 @@ flowchart TB
 │   │   │   └── webui.yaml               # Noooste/garage-ui Deployment (OIDC configured)
 │   │   └── lgtm/                        # LGTM Observability Stack
 │   │       ├── ca-configmap.yaml        # Local Root CA configmap for internal TLS
+│   │       ├── dashboards.yaml          # ConfigMap packaging all pre-provisioned Grafana dashboards
+│   │       ├── dashboards/              # JSON definitions for all platform dashboards
+│   │       │   ├── argocd.json          # Argo CD CI/CD metrics & application health
+│   │       │   ├── authentik.json       # Authentik SSO & outpost heartbeats
+│   │       │   ├── cnpg-postgres.json   # CloudNativePG PostgreSQL clusters
+│   │       │   ├── forgejo-garage.json  # Forgejo Git & Garage S3 storage
+│   │       │   ├── k8s-cluster.json     # Cluster CPU, Memory, Node & Namespace overview
+│   │       │   ├── k8s-pods.json        # Workloads, Pod resources & network IO
+│   │       │   └── lgtm.json            # LGTM Stack pipelines & telemetry
 │   │       ├── gateway.yaml             # HTTPRoute for grafana.192.168.39.200.nip.io
 │   │       ├── grafana.yaml             # Grafana v11 with Authentik SSO & preconfigured datasources
 │   │       ├── kustomization.yaml       # LGTM Kustomize entrypoint
@@ -266,7 +275,28 @@ Authentik automatically provisions OAuth2/OIDC applications and providers on fir
 
 ---
 
-### 6. Starting the Cluster After Reboot
+### 6. Observability & Pre-provisioned Dashboards
+
+The LGTM Stack is deployed in the `monitoring` namespace and is managed via Argo CD. It automatically scrapes metrics from all platform applications and hosts pre-provisioned Grafana dashboards under the **Platform Monitoring** folder:
+
+| Dashboard | Description | Metrics Sources |
+| :--- | :--- | :--- |
+| **Kubernetes / Cluster Overview** | Node status, cluster CPU & memory usage, active pods and namespaces, namespace bandwidth | Kubelet, cAdvisor |
+| **Kubernetes / Workloads & Pods** | Pod-level CPU usage, memory working set, network traffic (Rx/Tx), container restarts | cAdvisor, Kubernetes pod SD |
+| **PostgreSQL / CloudNativePG** | Active & idle backend connections, transaction commits & rollbacks, buffer cache hit ratio, max transaction duration | CloudNativePG metrics exporter (port 9187) |
+| **CI/CD / Argo CD** | Application health & sync status, sync operation rate, server API request rates, repo server git operations | Argo CD Server (8083), Repo Server (8084), Controller (8082) |
+| **Identity / Authentik** | Outpost heartbeat, version info, authentication sync timestamps | Authentik Server metrics (port 9300) |
+| **Apps / Forgejo & Garage S3** | Forgejo user accesses, comments, attachments, build info; Garage S3 Admin API operations and request rates | Forgejo (port 3000), Garage (port 3903) |
+| **Monitoring / LGTM Stack Overview** | Prometheus TSDB series & ingestion rate, Loki log lines/sec, Tempo trace throughput, OpenTelemetry Collector item throughput | Prometheus (9090), Loki (3100), Tempo (3200), OTel Collector (8889) |
+
+**Pre-configured Datasources in Grafana**:
+- **Prometheus** (`http://prometheus.monitoring.svc:9090`): Default metrics datasource.
+- **Loki** (`http://loki.monitoring.svc:3100`): Log aggregation with derived trace fields linked to Tempo.
+- **Tempo** (`http://tempo.monitoring.svc:3200`): Distributed tracing with automatic trace-to-logs linking to Loki.
+
+---
+
+### 7. Starting the Cluster After Reboot
 
 When restarting Minikube or the host machine, run:
 
