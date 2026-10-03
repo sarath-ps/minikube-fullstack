@@ -6,14 +6,14 @@
 3. **Gateway API**
 4. **cert-manager + local CA**
 5. **Persistent storage**
-
-### Phase 2 — GitOps bootstrap - Completed
-
 6. **Argo CD** - Completed
    * Deploy using Helm
    * Expose through Cilium Gateway
    * HTTPS via cert-manager
    * Verify local admin login
+
+
+### Phase 2 — GitOps bootstrap - Completed
 
 7. **CloudNativePG** - Completed
    * Deploy the operator
