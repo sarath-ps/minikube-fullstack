@@ -237,29 +237,67 @@ All HTTP/HTTPS services and TCP SSH traffic are consolidated on the shared IP **
 
 ---
 
-### 3. Deploy Forgejo & CloudNativePG
+### 3. Bootstrap CloudNativePG and Forgejo (before GitOps)
 
-1. **Deploy Forgejo & Database**:
+1. **Install CloudNativePG operator (bootstrap)**:
+   ```bash
+   helm repo add cnpg https://cloudnative-pg.github.io/charts
+   helm repo update
+   helm upgrade --install cnpg cnpg/cloudnative-pg \
+     --namespace cnpg-system \
+     --create-namespace \
+     --version 0.29.0 \
+     --wait \
+     --timeout 15m
+   ```
+
+2. **Deploy Forgejo & PostgreSQL cluster**:
    ```bash
    kubectl apply -k k8s/apps/forgejo
    ```
 
-2. **Push Platform Code into Forgejo**:
+3. **Push this repository into Forgejo**:
    ```bash
-   # Add Forgejo remote and push repository
-   git remote add origin git@forgejo.192.168.39.200.nip.io:forgejoadmin/minikube-fullstack.git
-   git push -u origin main
+   # Replace <forgejo-user> with your Forgejo username/org
+   git remote add forgejo git@forgejo.192.168.39.200.nip.io:<forgejo-user>/minikube-fullstack.git
+   git push -u forgejo main
    ```
+
+4. **Update App-of-Apps repo URLs to the actual owner/repo path**:
+   - [`k8s/argocd/root-application.yaml`](k8s/argocd/root-application.yaml)
+   - [`k8s/argocd/applications/*.yaml`](k8s/argocd/applications)
 
 ---
 
 ### 4. Enable Argo CD App-of-Apps
 
-Deploy the root application to manage all child applications via GitOps:
+1. **Create Argo CD repository credentials for Forgejo**:
+   ```bash
+   # Example uses local Forgejo bootstrap admin credentials
+   USER=$(kubectl -n forgejo get secret forgejo-admin-secret -o jsonpath='{.data.username}' | base64 -d)
+   PASS=$(kubectl -n forgejo get secret forgejo-admin-secret -o jsonpath='{.data.password}' | base64 -d)
 
-```bash
-kubectl apply -f k8s/argocd/root-application.yaml
-```
+   cat <<EOF | kubectl apply -f -
+   apiVersion: v1
+   kind: Secret
+   metadata:
+     name: repo-forgejo-minikube-fullstack
+     namespace: argocd
+     labels:
+       argocd.argoproj.io/secret-type: repository
+   stringData:
+     type: git
+     url: http://forgejo.forgejo.svc:3000/<forgejo-user>/minikube-fullstack.git
+     username: ${USER}
+     password: ${PASS}
+   EOF
+   ```
+
+2. **Deploy the root application**:
+   ```bash
+   kubectl apply -f k8s/argocd/root-application.yaml
+   kubectl get applications -n argocd
+   ```
 
 Argo CD will automatically sync:
 - `cloudnative-pg` (PostgreSQL Operator)
@@ -272,8 +310,6 @@ Argo CD will automatically sync:
 - `harbor` (Harbor OCI Registry with Trivy & S3 Garage backend)
 - `lgtm` (Loki, Grafana, Tempo, Prometheus, OpenTelemetry Collector)
 
----
-
 ### 5. Single Sign-On (SSO) with Authentik
 
 Authentik automatically provisions OAuth2/OIDC applications and providers on first boot using declarative blueprints located in [`k8s/apps/authentik/blueprints.yaml`](k8s/apps/authentik/blueprints.yaml):
@@ -281,7 +317,12 @@ Authentik automatically provisions OAuth2/OIDC applications and providers on fir
 1. **Argo CD OIDC**:
    - Issuer: `https://authentik.192.168.39.200.nip.io/application/o/argocd/`
    - Callback: `https://argocd.192.168.39.200.nip.io/auth/callback`
+   - CLI Callback: `http://localhost:8085/auth/callback`
    - Configured via Argo CD `oidc.config` with local Root CA trust.
+   - If using the TCP listener on `8443`, CLI login command:
+     ```bash
+     argocd login argocd.192.168.39.200.nip.io:8443 --sso --plaintext
+     ```
 2. **Forgejo OAuth2 / OIDC**:
    - Issuer: `https://authentik.192.168.39.200.nip.io/application/o/forgejo/`
    - Callback: `https://forgejo.192.168.39.200.nip.io/user/oauth2/authentik/callback`
@@ -336,5 +377,4 @@ This script:
 2. Waits for Cilium CNI to become healthy and ready.
 3. Refreshes application pods to re-attach Cilium eBPF network endpoints.
 4. Displays all active service URLs and credentials.
-
 
