@@ -24,10 +24,15 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
-
     - name: ssh
       protocol: TCP
       port: 22
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: argocd-cli
+      protocol: TCP
+      port: 8443
       allowedRoutes:
         namespaces:
           from: All
@@ -48,5 +53,20 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
+        - name: argocd-server
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: TCPRoute
+metadata:
+  name: argocd-cli
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: argocd
+      namespace: argocd
+      sectionName: argocd-cli
+  rules:
+    - backendRefs:
         - name: argocd-server
           port: 80

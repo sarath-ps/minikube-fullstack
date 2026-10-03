@@ -10,7 +10,7 @@ configs:
       name: Authentik
       issuer: https://authentik.192.168.39.200.nip.io/application/o/argocd/
       clientID: argocd
-      clientSecret: $oidc.authentik.clientSecret
+      clientSecret: argocd-authentik-secret-2026
       requestedScopes: ["openid", "profile", "email"]
       rootCA: |
         -----BEGIN CERTIFICATE-----
