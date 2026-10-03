@@ -54,12 +54,6 @@ Cloudsea/private-cloud/minikube-fullstack took 9s
 ❯ sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
 
 Cloudsea/private-cloud/minikube-fullstack 
-❯ minikube --version
-Error: unknown flag: --version
-See 'minikube --help' for usage.
-[ble: exit 14]
-
-Cloudsea/private-cloud/minikube-fullstack 
 ❯ minikube version
 minikube version: v1.39.0
 commit: 7a9f6a841470a207de8cf4bafcccee0969d8ba10
@@ -71,7 +65,7 @@ commit: 7a9f6a841470a207de8cf4bafcccee0969d8ba10
 - driver: podman
 ```
 
-## Kinikube with Cilium and Hubble
+## Minikube with Cilium and Hubble
 
 
 ```sh
@@ -89,12 +83,12 @@ Cloudsea/private-cloud/minikube-fullstack
   --version 1.20.1 \
   --namespace kube-system \
   --set kubeProxyReplacement=true \
-  --set k8sServiceHost=192.168.39.74 \
+  --set k8sServiceHost=192.168.39.162 \
   --set k8sServicePort=8443 \
   --set hubble.enabled=true \
   --set hubble.relay.enabled=true \
-  --set hubble.ui.enabled=true
-  --set  operator.replicas=1
+  --set hubble.ui.enabled=true \
+  --set operator.replicas=1
 ```
 
 ```sh
@@ -103,7 +97,7 @@ helm upgrade cilium cilium/cilium \
   --reuse-values \
   --set l2announcements.enabled=true \
   --set kubeProxyReplacement=true \
-  --set k8sServiceHost=192.168.39.74 \
+  --set k8sServiceHost=192.168.39.162 \
   --set k8sServicePort=8443
 
  
@@ -160,7 +154,6 @@ kubectl apply --server-side \
 ```sh
 ⎈ in k8s-platform (default) minikube-fullstack on  main [!] 
 ❯ helm upgrade cilium cilium/cilium \
-  --version 1.20.1 \
   --namespace kube-system \
   --reuse-values \
   --set kubeProxyReplacement=true \
@@ -184,4 +177,78 @@ kubectl -n gateway-test create deployment echo \
 kubectl -n gateway-test expose deployment echo \
   --port=80 \
   --target-port=80
+```
+
+## `cert-manager` and root CA
+
+```
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+```
+
+```
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --set crds.enabled=true
+
+❯ k get all -n cert-manager 
+NAME                                           READY   STATUS    RESTARTS   AGE
+pod/cert-manager-66b9bfb996-vsjpq              1/1     Running   0          35s
+pod/cert-manager-cainjector-5cc56c6f78-prnxm   1/1     Running   0          35s
+pod/cert-manager-webhook-579c6dd789-lswwt      1/1     Running   0          35s
+
+NAME                              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)            AGE
+service/cert-manager              ClusterIP   10.100.196.252   <none>        9402/TCP           35s
+service/cert-manager-cainjector   ClusterIP   10.109.183.31    <none>        9402/TCP           35s
+service/cert-manager-webhook      ClusterIP   10.110.161.69    <none>        443/TCP,9402/TCP   35s
+
+NAME                                      READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/cert-manager              1/1     1            1           35s
+deployment.apps/cert-manager-cainjector   1/1     1            1           35s
+deployment.apps/cert-manager-webhook      1/1     1            1           35s
+
+NAME                                                 DESIRED   CURRENT   READY   AGE
+replicaset.apps/cert-manager-66b9bfb996              1         1         1       35s
+replicaset.apps/cert-manager-cainjector-5cc56c6f78   1         1         1       35s
+replicaset.apps/cert-manager-webhook-579c6dd789      1         1         1       35s
+
+
+```
+
+```
+❯ k apply -f k8s/root-ca.yaml 
+clusterissuer.cert-manager.io/selfsigned-bootstrap created
+certificate.cert-manager.io/cloudsea-root-ca created
+
+⎈ in minikube (default) minikube-fullstack on  feat/trial [!] 
+❯ k apply -f k8s/local-ca.yaml 
+clusterissuer.cert-manager.io/cloudsea-local-ca created
+
+```
+
+```
+kubectl get secret -n cert-manager cloudsea-root-ca \
+  -o jsonpath='{.data.tls\.crt}' | base64 -d > ./k8s/cloudsea-root-ca.crt
+
+# sudo cp ./k8s/cloudsea-root-ca.crt /usr/local/share/ca-certificates/cloudsea-root-ca.crt # debian
+
+sudo cp ./k8s/cloudsea-root-ca.crt /etc/pki/ca-trust/source/anchors/ $ redhat
+
+
+sudo update-ca-certificates
+```
+
+### Generate Certificates
+
+```
+kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl apply -f k8s/argocd/certificate.yaml
+
+kubectl apply -f k8s/argocd/argocd-gateway.yaml
+
+kubectl apply -f k8s/argocd/root-application.yaml
+
+
 ```
