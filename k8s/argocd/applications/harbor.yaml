@@ -14,7 +14,7 @@ spec:
       helm:
         valueFiles:
           - $values/k8s/apps/harbor/values.yaml
-    - repoURL: http://forgejo.forgejo.svc:3000/forgejoadmin/minikube-fullstack.git
+    - repoURL: http://forgejo.forgejo.svc:3000/sar/minikube-fullstack.git
       targetRevision: main
       ref: values
   destination:

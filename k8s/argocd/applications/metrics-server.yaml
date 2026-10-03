@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: http://forgejo.forgejo.svc:3000/forgejoadmin/minikube-fullstack.git
+    repoURL: http://forgejo.forgejo.svc:3000/sar/minikube-fullstack.git
     targetRevision: main
     path: k8s/platform/metrics-server
   destination:
